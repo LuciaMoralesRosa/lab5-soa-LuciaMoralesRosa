@@ -49,14 +49,17 @@ class IntegrationApplication(
      */
     @Bean
     fun oddChannel(): PublishSubscribeChannelSpec<*> = MessageChannels.publishSubscribe()
-    
+
+    /**
+     * First flow that polls the integer source every 100ms.
+     * It transforms the generated number and routes it directly to the 'numberChannel'.
+     */
     @Bean
     fun flowNumberChannel(integerSource: AtomicInteger): IntegrationFlow =
         integrationFlow(
             source = { integerSource.getAndIncrement() },
             options = { poller(Pollers.fixedRate(100)) },
-        )
-        {
+        ) {
             transform { num: Int ->
                 logger.info("📥 Source generated number: {}", num)
                 num
@@ -69,8 +72,8 @@ class IntegrationApplication(
         }
 
     /**
-     * Main integration flow that polls the integer source and routes messages.
-     * Polls every 100ms and routes based on even/odd logic.
+     * Main integration flow that receives messages from "numberChannel" and routes them.
+     * Routes messages based on whether the number is even ("evenChannel") or odd ("oddChannel").
      */
     @Bean
     fun myFlow(): IntegrationFlow =
@@ -80,7 +83,8 @@ class IntegrationApplication(
                 num
             }
             route { p: Int ->
-                // evenChannel is now direct
+                // evenChannel is a direct channel (Point-to-Point)
+                // oddChannel is a Publish-Subscribe channel
                 val channel = if (p % 2 == 0) "evenChannel" else "oddChannel"
                 logger.info("🔀 Router: {} → {}", p, channel)
                 channel
@@ -104,9 +108,9 @@ class IntegrationApplication(
         }
 
     /**
-     * Integration flow for processing odd numbers.
-     * Applies a filter before transformation and logging.
-     * Note: Examine the filter condition carefully.
+     * Integration flow for processing odd numbers via the 'oddChannel' (Publish-Subscribe).
+     * Transforms integers to strings and logs the result using a Message Handler.
+     * Note: This flow processes all odd numbers, as it currently lacks a filter.
      */
     @Bean
     fun oddFlow(): IntegrationFlow =
@@ -134,6 +138,7 @@ class IntegrationApplication(
 /**
  * Service component that processes messages from the odd channel.
  * Uses @ServiceActivator annotation to connect to the integration flow.
+ * Note: Since 'oddChannel' is Publish-Subscribe, both this component and 'oddFlow' receive the message.
  */
 @Component
 class SomeService {
@@ -145,8 +150,8 @@ class SomeService {
 
 /**
  * Messaging Gateway for sending numbers into the integration flow.
- * This provides a simple interface to inject messages into the system.
- * Note: Check which channel this gateway sends messages to.
+ * This provides a simple interface to inject messages into the system by sending them
+ * to the 'numberChannel'.
  */
 @MessagingGateway
 interface SendNumber {
