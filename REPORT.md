@@ -21,7 +21,7 @@ reparta de forma equivalente entre ambos flujos, y los devuelve en el log.
 Por ultimo, existe un canal `DiscardChannel` aislado con un handle que imprime su salida en el log.
 
 Diagrama EIP de la version incorrecta
-![EIP_IncorrectVersion.png](docs/EIP_IncorrectVersion.png)
+![EIP_IncorrectVersion.png](diagrams/before.png)
 ---
 
 ## 2. What Was Wrong
